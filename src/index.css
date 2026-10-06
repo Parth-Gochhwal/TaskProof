@@ -1,0 +1,246 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+/* ============================
+   CSS Custom Properties (Design Tokens)
+   ============================ */
+:root {
+  /* Brand Colors */
+  --primary: #1A4B8F;
+  --primary-dark: #12386D;
+  --primary-light: #4F78B4;
+  --primary-xlight: #EBF1FA;
+
+  /* Silver Palette */
+  --silver: #E6E9EF;
+  --silver-dark: #CDD3DF;
+  --silver-light: #F5F7FA;
+
+  /* Base */
+  --bg: #F5F7FA;
+  --surface: #FFFFFF;
+  --border: #D8DEE8;
+  --border-light: rgba(255,255,255,0.55);
+
+  /* Text */
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+
+  /* Semantic */
+  --success: #16A34A;
+  --success-bg: #DCFCE7;
+  --warning: #D97706;
+  --warning-bg: #FEF3C7;
+  --error: #DC2626;
+  --error-bg: #FEE2E2;
+
+  /* Glass */
+  --glass-bg: rgba(255, 255, 255, 0.45);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --glass-shadow: 0 8px 32px rgba(26, 75, 143, 0.06), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+  --glass-shadow-lg: 0 16px 64px rgba(26, 75, 143, 0.12), inset 0 2px 4px rgba(255, 255, 255, 0.6);
+
+  /* Cobalt glow */
+  --glow: 0 0 20px rgba(26,75,143,0.18);
+  --glow-sm: 0 0 12px rgba(26,75,143,0.12);
+
+  /* Spacing */
+  --radius: 16px;
+  --radius-sm: 8px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+
+  /* Sidebar */
+  --sidebar-width: 260px;
+  --topnav-height: 64px;
+}
+
+/* ============================
+   Base Styles
+   ============================ */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  background: var(--silver);
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+/* ============================
+   Glass Card Utility
+   ============================ */
+.glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--radius);
+}
+
+.glass-card-dark {
+  background: rgba(26,75,143,0.08);
+  border: 1px solid rgba(26,75,143,0.15);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--radius);
+}
+
+/* ============================
+   Scrollbar
+   ============================ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--silver-dark); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary-light); }
+
+/* ============================
+   Focus styles
+   ============================ */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ============================
+   Page background gradient
+   ============================ */
+.page-bg {
+  background: linear-gradient(135deg, #F5F7FA 0%, #EBF1FA 50%, #E6E9EF 100%);
+  min-height: 100vh;
+}
+
+/* ============================
+   Cobalt gradient text
+   ============================ */
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ============================
+   App Layout
+   ============================ */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.app-sidebar {
+  width: var(--sidebar-width);
+  min-height: 100vh;
+  background: rgba(245, 247, 250, 0.65);
+  border-right: 1px solid rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main {
+  margin-left: var(--sidebar-width);
+  flex: 1;
+  min-height: 100vh;
+  background-color: var(--silver);
+  background-image: 
+    radial-gradient(circle at 0% 0%, rgba(26, 75, 143, 0.1) 0%, transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(79, 120, 180, 0.12) 0%, transparent 40%),
+    radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.8) 0%, transparent 40%);
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================
+   Animations
+   ============================ */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: var(--glow-sm); }
+  50% { box-shadow: var(--glow); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.float { animation: float 4s ease-in-out infinite; }
+.float-delay { animation: float 4s ease-in-out 1s infinite; }
+.float-delay-2 { animation: float 4s ease-in-out 2s infinite; }
+.pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+.count-up { animation: count-up 0.6s ease-out forwards; }
+
+/* ============================
+   Status badge colors
+   ============================ */
+.badge-pending   { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+.badge-active    { background: #DBEAFE; color: #1E40AF; border: 1px solid #BFDBFE; }
+.badge-review    { background: #F3E8FF; color: #6B21A8; border: 1px solid #E9D5FF; }
+.badge-approved  { background: #DCFCE7; color: #14532D; border: 1px solid #BBF7D0; }
+.badge-rejected  { background: #FEE2E2; color: #7F1D1D; border: 1px solid #FECACA; }
+.badge-rewarded  { background: #EBF1FA; color: #1A4B8F; border: 1px solid #BFDBFE; }
+.badge-easy      { background: #DCFCE7; color: #14532D; border: 1px solid #BBF7D0; }
+.badge-medium    { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+.badge-hard      { background: #FEE2E2; color: #7F1D1D; border: 1px solid #FECACA; }
+
+/* ============================
+   Progress bar
+   ============================ */
+.progress-bar {
+  background: var(--silver);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+  border-radius: 99px;
+  transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ============================
+   Reduced motion
+   ============================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================
+   Mobile sidebar
+   ============================ */
+@media (max-width: 768px) {
+  .app-sidebar { transform: translateX(-100%); transition: transform 0.3s ease; }
+  .app-sidebar.open { transform: translateX(0); }
+  .app-main { margin-left: 0; }
+}
