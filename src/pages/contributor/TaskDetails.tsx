@@ -1,9 +1,10 @@
 import { useNavigate, useParams } from 'react-router-dom';
-import { Clock, Users, Shield, ChevronRight, AlertCircle } from 'lucide-react';
+import { Clock, Users, Shield, ChevronRight, AlertCircle, Loader2 } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard, Button, DifficultyBadge, PageHeader, StatusBadge } from '../../components/ui/index';
 import { taskService } from '../../services/taskService';
 import { submissionService } from '../../services/submissionService';
+import { useApi } from '../../hooks/useApi';
 
 const categoryLabels: Record<string, string> = {
   'data-labeling': 'Data Labeling',
@@ -31,7 +32,18 @@ export default function TaskDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const task = id ? taskService.getById(id) : null;
+  const { data: task, isLoading: taskLoading } = useApi(() => taskService.getById(id || ''), [id]);
+  const { data: mySubmissions, isLoading: subsLoading } = useApi(() => submissionService.getMine());
+
+  if (taskLoading || subsLoading) {
+    return (
+      <AppShell>
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-[#1A4B8F]" />
+        </div>
+      </AppShell>
+    );
+  }
 
   if (!task) {
     return (
@@ -47,9 +59,7 @@ export default function TaskDetails() {
   }
 
   // Check if already submitted
-  const existingSub = submissionService.getByContributor('user-contributor-demo')
-    .find(s => s.taskId === task.id && s.status !== 'rejected');
-
+  const existingSub = (mySubmissions || []).find(s => s.taskId === task.id && s.status !== 'rejected');
   const isAvailable = task.remainingSlots > 0 && task.status === 'active';
 
   return (

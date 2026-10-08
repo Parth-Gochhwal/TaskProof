@@ -1,25 +1,36 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, Clock, Shield, ChevronRight, AlertCircle } from 'lucide-react';
+import { CheckCircle, Clock, Shield, ChevronRight, AlertCircle, Loader2 } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard, Button, PageHeader, ProgressBar, Textarea } from '../../components/ui/index';
 import { taskService } from '../../services/taskService';
 import { submissionService } from '../../services/submissionService';
 import { useAuth } from '../../context/AuthContext';
+import { useApi } from '../../hooks/useApi';
 
 export default function TaskCompletion() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, contributorProfile, updateContributorProfile } = useAuth();
+  const { refreshBalance } = useAuth();
 
-  const task = id ? taskService.getById(id) : null;
+  const { data: task, isLoading: taskLoading } = useApi(() => taskService.getById(id || ''), [id]);
 
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  if (taskLoading) {
+    return (
+      <AppShell>
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-[#1A4B8F]" />
+        </div>
+      </AppShell>
+    );
+  }
 
   if (!task) {
     return (
@@ -35,6 +46,7 @@ export default function TaskCompletion() {
 
   const fields = task.inputFields;
   const currentField = fields[step];
+  
   const handleAnswer = (value: string | string[]) => {
     setAnswers(prev => ({ ...prev, [currentField.id]: value }));
     setError('');
@@ -54,26 +66,19 @@ export default function TaskCompletion() {
 
   const handleSubmit = async () => {
     setSubmitting(true);
-    await new Promise(r => setTimeout(r, 1200));
+    try {
+      await submissionService.create(task.id, answers);
 
-    submissionService.create({
-      taskId: task.id,
-      taskTitle: task.title,
-      contributorId: user?.id || '',
-      contributorName: user?.name || '',
-      contributorLevel: contributorProfile?.level || 1,
-      data: answers,
-    });
-
-    taskService.decrementSlot(task.id);
-
-    // Add XP
-    if (contributorProfile) {
-      updateContributorProfile({ xp: contributorProfile.xp + 25 });
+      // Decrement slot in local mock - we can ignore it since backend does it
+      // And we can refresh balance/profile later
+      await refreshBalance();
+      
+      setSubmitted(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to submit task');
+    } finally {
+      setSubmitting(false);
     }
-
-    setSubmitting(false);
-    setSubmitted(true);
   };
 
   if (submitted) {

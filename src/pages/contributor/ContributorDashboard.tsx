@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, CheckCircle, Clock, TrendingUp, ArrowRight, Flame } from 'lucide-react';
+import { Zap, CheckCircle, Clock, TrendingUp, ArrowRight, Flame, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard, MetricCard, SectionHeader, Button, ProgressBar } from '../../components/ui/index';
@@ -8,16 +8,18 @@ import { TaskCard } from '../../components/ui/TaskCard';
 import { useAuth } from '../../context/AuthContext';
 import { taskService } from '../../services/taskService';
 import { submissionService } from '../../services/submissionService';
+import { useApi } from '../../hooks/useApi';
 
 export default function ContributorDashboard() {
   const { user, contributorProfile, balance } = useAuth();
   const navigate = useNavigate();
 
-  const allTasks = taskService.getAll();
+  const { data: allTasks = [], isLoading: tasksLoading } = useApi(() => taskService.getAll());
+  const { data: mySubmissions = [], isLoading: subsLoading } = useApi(() => submissionService.getMine());
+
   const recommended = allTasks.slice(0, 4);
-  const mySubmissions = submissionService.getByContributor('user-contributor-demo');
   const inReview = mySubmissions.filter(s => s.status === 'under_review').length;
-  const completed = mySubmissions.filter(s => s.status === 'rewarded').length;
+  const completed = mySubmissions.filter(s => s.status === 'approved' || s.status === 'rewarded').length;
 
   const [hour] = useState(() => new Date().getHours());
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
@@ -70,8 +72,8 @@ export default function ContributorDashboard() {
         {/* Metrics */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <MetricCard label="TCR Balance" value={`${balance.toLocaleString()}`} sub="Demo Credits" icon={<Zap className="w-5 h-5" />} />
-          <MetricCard label="Tasks Completed" value={completed} sub="Approved & rewarded" icon={<CheckCircle className="w-5 h-5" />} color="#16A34A" />
-          <MetricCard label="Under Review" value={inReview} sub="Awaiting decision" icon={<Clock className="w-5 h-5" />} color="#D97706" />
+          <MetricCard label="Tasks Completed" value={subsLoading ? '...' : completed} sub="Approved & rewarded" icon={<CheckCircle className="w-5 h-5" />} color="#16A34A" />
+          <MetricCard label="Under Review" value={subsLoading ? '...' : inReview} sub="Awaiting decision" icon={<Clock className="w-5 h-5" />} color="#D97706" />
           <MetricCard label="Total Earned" value={`${contributorProfile?.totalEarned.toLocaleString() || 0} TCR`} sub="All time" icon={<TrendingUp className="w-5 h-5" />} />
         </div>
 
@@ -108,11 +110,17 @@ export default function ContributorDashboard() {
               </Button>
             }
           />
-          <div className="grid sm:grid-cols-2 gap-4">
-            {recommended.map(task => (
-              <TaskCard key={task.id} task={task} />
-            ))}
-          </div>
+          {tasksLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-[#1A4B8F]" />
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-4">
+              {recommended.map(task => (
+                <TaskCard key={task.id} task={task} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </AppShell>

@@ -1,13 +1,13 @@
 # TaskProof — Verified Micro-Task Marketplace
 
-TaskProof is a premium prototype built for **DEV2HACK 2026**. It demonstrates a robust micro-task marketplace where businesses can post structured tasks, and contributors can complete them to earn verified rewards.
+TaskProof is a full-stack prototype built for **DEV2HACK 2026**. It demonstrates a robust micro-task marketplace where businesses can post structured tasks, and contributors can complete them to earn verified rewards.
 
 ## Key Features
 
 ### For Contributors
 - **Browse & Filter**: Find micro-tasks tailored to skills (e.g., AI Evaluation, Data Labeling).
 - **Interactive Completion Flow**: Step-by-step UI for task execution with validation.
-- **Verified Work History**: Blockchain-simulated immutable record of approved tasks.
+- **Verified Work History**: Ledger-backed immutable record of approved tasks.
 - **Leaderboard & Progression**: Level up and earn badges based on quality and volume.
 - **Wallet**: Track earned Task Credits (TCR) with transparent transaction history.
 
@@ -18,27 +18,35 @@ TaskProof is a premium prototype built for **DEV2HACK 2026**. It demonstrates a 
 - **Budget Management**: View reserved budgets and transaction history.
 
 ## Tech Stack
-- **Frontend Framework**: React 18 with TypeScript, powered by Vite.
+- **Frontend Framework**: React 19 with TypeScript, powered by Vite.
+- **Backend Framework**: FastAPI (Python 3.14).
+- **Database**: SQLite with SQLAlchemy 2.0 ORM.
 - **Styling**: Tailwind CSS with a custom Glassmorphism design system.
-- **Routing**: React Router DOM (v6).
-- **Icons & Animations**: Lucide React and Framer Motion.
-- **Data Visualization**: Recharts.
-- **State & Data**: React Context and in-memory simulated services for instant demo capabilities without requiring backend setup.
+- **Data Fetching**: Native asynchronous data fetching using custom `useApi` hook.
+- **Authentication**: Stateless HMAC-signed token authentication.
 
 ## Getting Started
 
-1. **Install dependencies:**
+### 1. Backend Setup
+1. Open a terminal in the `backend/` directory.
+2. The virtual environment is already configured in `.venv`. Run the FastAPI server:
+   ```bash
+   ../.venv/Scripts/python -m uvicorn app.main:app --port 8000 --host 127.0.0.1 --reload
+   ```
+   *Note: The SQLite database is pre-seeded with initial data upon startup.*
+
+### 2. Frontend Setup
+1. Open a new terminal in the root directory.
+2. Install dependencies (if not already done):
    ```bash
    npm install
    ```
-
-2. **Start the development server:**
+3. Start the Vite development server:
    ```bash
    npm run dev
    ```
+4. Open the application at `http://localhost:5173`.
 
-3. **Open the application:**
-   Navigate to `http://localhost:5173` in your browser.
-
-## Demo Accounts
-The application uses a simulated authentication system for immediate access during the hackathon. Clicking "I'm a Contributor" or "I'm a Business" on the signup page will automatically log you into the respective demo accounts pre-seeded with mock data.
+## Documentation
+- [Architecture Details](ARCHITECTURE.md)
+- [Demo Walkthrough](DEMO_FLOW.md)

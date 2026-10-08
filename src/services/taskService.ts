@@ -1,60 +1,43 @@
 import type { Task } from '../types/models';
-import { SEED_TASKS } from '../data/seed';
-
-let tasks: Task[] = [...SEED_TASKS];
+import { apiClient } from './apiClient';
 
 export const taskService = {
-  getAll(): Task[] {
-    return tasks.filter(t => t.status === 'active');
+  async getAll(params?: { category?: string; difficulty?: string; q?: string }): Promise<Task[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.category && params.category !== 'all') searchParams.append('category', params.category);
+    if (params?.difficulty) searchParams.append('difficulty', params.difficulty);
+    if (params?.q) searchParams.append('q', params.q);
+    
+    const qs = searchParams.toString();
+    const endpoint = qs ? `/tasks?${qs}` : '/tasks';
+    return apiClient.get<Task[]>(endpoint);
   },
 
-  getById(id: string): Task | null {
-    return tasks.find(t => t.id === id) || null;
-  },
-
-  getByBusiness(businessId: string): Task[] {
-    return tasks.filter(t => t.businessId === businessId);
-  },
-
-  search(query: string): Task[] {
-    const q = query.toLowerCase();
-    return tasks.filter(t =>
-      t.status === 'active' &&
-      (t.title.toLowerCase().includes(q) ||
-        t.category.includes(q) ||
-        t.tags.some(tag => tag.includes(q)) ||
-        t.description.toLowerCase().includes(q))
-    );
-  },
-
-  filterByCategory(category: string): Task[] {
-    if (category === 'all') return tasks.filter(t => t.status === 'active');
-    return tasks.filter(t => t.status === 'active' && t.category === category);
-  },
-
-  create(params: Omit<Task, 'id' | 'remainingSlots' | 'qualityScore' | 'createdAt'>): Task {
-    const task: Task = {
-      ...params,
-      id: 'task-' + Date.now().toString(36),
-      remainingSlots: params.slots,
-      qualityScore: 0,
-      createdAt: new Date().toISOString(),
-    };
-    tasks = [task, ...tasks];
-    return task;
-  },
-
-  decrementSlot(taskId: string): void {
-    const idx = tasks.findIndex(t => t.id === taskId);
-    if (idx !== -1 && tasks[idx].remainingSlots > 0) {
-      tasks[idx] = { ...tasks[idx], remainingSlots: tasks[idx].remainingSlots - 1 };
+  async getById(id: string): Promise<Task | null> {
+    try {
+      return await apiClient.get<Task>(`/tasks/${id}`);
+    } catch (e) {
+      return null;
     }
   },
 
-  update(taskId: string, patch: Partial<Task>): void {
-    const idx = tasks.findIndex(t => t.id === taskId);
-    if (idx !== -1) {
-      tasks[idx] = { ...tasks[idx], ...patch };
-    }
+  async getByBusiness(): Promise<Task[]> {
+    return apiClient.get<Task[]>('/business/tasks');
+  },
+
+  async search(query: string): Promise<Task[]> {
+    return this.getAll({ q: query });
+  },
+
+  async filterByCategory(category: string): Promise<Task[]> {
+    return this.getAll({ category });
+  },
+
+  async create(params: Omit<Task, 'id' | 'remainingSlots' | 'qualityScore' | 'createdAt' | 'status' | 'businessId'>): Promise<Task> {
+    return apiClient.post<Task>('/tasks', params);
+  },
+
+  async update(taskId: string, patch: Partial<Task>): Promise<Task> {
+    return apiClient.patch<Task>(`/tasks/${taskId}`, patch);
   },
 };

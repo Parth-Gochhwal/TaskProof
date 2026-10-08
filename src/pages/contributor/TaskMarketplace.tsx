@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Search } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { Input, Tabs, PageHeader, EmptyState } from '../../components/ui/index';
 import { TaskCard } from '../../components/ui/TaskCard';
 import { taskService } from '../../services/taskService';
-
+import { useApi } from '../../hooks/useApi';
 
 const CATEGORY_TABS = [
   { id: 'all', label: 'All Tasks' },
@@ -20,22 +20,25 @@ export default function TaskMarketplace() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
 
-  const allTasks = taskService.getAll();
-  const filtered = allTasks.filter(t => {
-    const matchesCat = category === 'all' || t.category === category;
-    const matchesQ = !query ||
-      t.title.toLowerCase().includes(query.toLowerCase()) ||
-      t.description.toLowerCase().includes(query.toLowerCase()) ||
-      t.tags.some(tag => tag.toLowerCase().includes(query.toLowerCase()));
-    return matchesCat && matchesQ;
-  });
+  const { data: allTasks = [], isLoading } = useApi(() => taskService.getAll());
+
+  const filtered = useMemo(() => {
+    return allTasks.filter(t => {
+      const matchesCat = category === 'all' || t.category === category;
+      const matchesQ = !query ||
+        t.title.toLowerCase().includes(query.toLowerCase()) ||
+        t.description.toLowerCase().includes(query.toLowerCase()) ||
+        t.tags.some(tag => tag.toLowerCase().includes(query.toLowerCase()));
+      return matchesCat && matchesQ;
+    });
+  }, [allTasks, category, query]);
 
   return (
     <AppShell>
       <div className="max-w-5xl mx-auto">
         <PageHeader
           title="Task Marketplace"
-          subtitle={`${allTasks.length} tasks available`}
+          subtitle={isLoading ? "Loading tasks..." : `${allTasks.length} tasks available`}
         />
 
         {/* Search */}
@@ -52,14 +55,23 @@ export default function TaskMarketplace() {
         {/* Category filter */}
         <div className="mb-6 overflow-x-auto pb-2">
           <Tabs
-            tabs={CATEGORY_TABS.map(t => ({ ...t, count: t.id === 'all' ? allTasks.length : allTasks.filter(task => task.category === t.id).length }))}
+            tabs={CATEGORY_TABS.map(t => ({ 
+              ...t, 
+              count: t.id === 'all' ? allTasks.length : allTasks.filter(task => task.category === t.id).length 
+            }))}
             active={category}
             onChange={setCategory}
           />
         </div>
 
         {/* Results */}
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="grid sm:grid-cols-2 gap-4">
+             {/* Skeletons could go here */}
+             <div className="h-48 bg-white/5 backdrop-blur rounded-2xl animate-pulse" />
+             <div className="h-48 bg-white/5 backdrop-blur rounded-2xl animate-pulse" />
+          </div>
+        ) : filtered.length === 0 ? (
           <EmptyState
             icon={<Search className="w-12 h-12" />}
             title="No tasks found"

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, XCircle, Shield } from 'lucide-react';
+import { CheckCircle, XCircle, Shield, Loader2 } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard, PageHeader, Button, StatusBadge, Tabs, Avatar, Modal, Textarea } from '../../components/ui/index';
 import { submissionService } from '../../services/submissionService';
-import { taskService } from '../../services/taskService';
 import type { Submission } from '../../types/models';
+import { useApi } from '../../hooks/useApi';
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -51,7 +51,7 @@ function SubmissionDetail({ sub, onApprove, onReject }: {
           <span className="text-xs text-[#94A3B8] bg-[#F5F7FA] px-2 py-0.5 rounded-full">AI-assisted verification</span>
         </div>
         <div className="space-y-2">
-          {sub.automatedChecks.map(check => (
+          {sub.automatedChecks?.map(check => (
             <div key={check.id} className={`flex items-center gap-3 p-3 rounded-xl ${check.passed ? 'bg-[#DCFCE7]' : 'bg-[#FEE2E2]'}`}
               style={{ border: `1px solid ${check.passed ? '#BBF7D0' : '#FECACA'}` }}>
               {check.passed ? <CheckCircle className="w-4 h-4 text-[#16A34A] flex-shrink-0" /> : <XCircle className="w-4 h-4 text-[#DC2626] flex-shrink-0" />}
@@ -68,11 +68,11 @@ function SubmissionDetail({ sub, onApprove, onReject }: {
       <div>
         <h3 className="text-sm font-bold text-[#0F172A] mb-3">Submitted Answer</h3>
         <div className="space-y-2">
-          {Object.entries(sub.data).map(([key, val]) => (
+          {Object.entries(sub.data || {}).map(([key, val]) => (
             val ? (
               <div key={key} className="p-3 rounded-xl" style={{ background: '#F5F7FA', border: '1px solid #D8DEE8' }}>
                 <p className="text-xs text-[#64748B] mb-1 capitalize">{key}</p>
-                <p className="text-sm font-medium text-[#0F172A]">{Array.isArray(val) ? val.join(', ') : val}</p>
+                <p className="text-sm font-medium text-[#0F172A]">{Array.isArray(val) ? val.join(', ') : val as string}</p>
               </div>
             ) : null
           ))}
@@ -140,41 +140,44 @@ export default function SubmissionReview() {
   const [selected, setSelected] = useState<Submission | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [approvalDetails, setApprovalDetails] = useState<{ reward: number; proof: string } | null>(null);
+  const [processing, setProcessing] = useState(false);
 
-  const taskIds = taskService.getByBusiness('user-business-demo').map(t => t.id);
-  const [subs, setSubs] = useState(() => submissionService.getAll().filter(s => taskIds.includes(s.taskId)));
+  const { data: subs = [], isLoading, refetch } = useApi(() => submissionService.getForBusiness());
 
-  const refresh = () => setSubs(submissionService.getAll().filter(s => taskIds.includes(s.taskId)));
+  const filtered = tab === 'all' ? subs : subs.filter(s => s.status === tab || (tab === 'rewarded' && s.status === 'approved'));
 
-  const filtered = tab === 'all' ? subs : subs.filter(s => s.status === tab);
-
-  const handleApprove = (subId: string) => {
-    const result = submissionService.approve(subId, 'user-business-demo');
+  const handleApprove = async (subId: string) => {
+    setProcessing(true);
+    const result = await submissionService.approve(subId);
+    setProcessing(false);
     if (result.success) {
-      refresh();
-      const approvedSub = submissionService.getById(subId);
-      setApprovalDetails({ reward: approvedSub?.reward || 50, proof: approvedSub?.transactionId || '' });
+      await refetch();
+      setApprovalDetails({ reward: result.reward || 0, proof: result.proofHash || result.transactionId || '' });
       setShowSuccess(true);
       setSelected(null);
+    } else {
+      alert("Failed to approve: " + result.error);
     }
   };
 
-  const handleReject = (subId: string, reason: string) => {
-    submissionService.reject(subId, 'user-business-demo', reason);
-    refresh();
+  const handleReject = async (subId: string, reason: string) => {
+    setProcessing(true);
+    await submissionService.reject(subId, reason);
+    setProcessing(false);
+    await refetch();
     setSelected(null);
   };
 
   return (
     <AppShell>
       <div className="max-w-4xl mx-auto">
-        <PageHeader title="Submission Review" subtitle="Review and approve contributor work" />
+        <PageHeader title="Submission Review" subtitle={isLoading ? "Loading..." : "Review and approve contributor work"} />
 
         <div className="mb-5">
           <Tabs
             tabs={TABS.map(t => ({
               ...t,
-              count: t.id === 'all' ? subs.length : subs.filter(s => s.status === t.id).length
+              count: t.id === 'all' ? subs.length : subs.filter(s => s.status === t.id || (t.id === 'rewarded' && s.status === 'approved')).length
             }))}
             active={tab}
             onChange={setTab}
@@ -203,7 +206,17 @@ export default function SubmissionReview() {
           )}
         </AnimatePresence>
 
-        {selected ? (
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-[#1A4B8F]" />
+          </div>
+        ) : processing ? (
+          <GlassCard className="p-12 text-center flex flex-col items-center">
+             <Loader2 className="w-10 h-10 animate-spin text-[#1A4B8F] mb-4" />
+             <p className="text-[#0F172A] font-bold">Processing Action...</p>
+             <p className="text-sm text-[#64748B]">Recording transaction on the local network</p>
+          </GlassCard>
+        ) : selected ? (
           <GlassCard className="p-6">
             <button onClick={() => setSelected(null)} className="text-sm text-[#64748B] hover:text-[#1A4B8F] mb-5 flex items-center gap-1.5 cursor-pointer">
               ← Back to list
@@ -237,7 +250,7 @@ export default function SubmissionReview() {
                   <div className="flex items-center gap-3 flex-shrink-0">
                     <p className="text-xs text-[#94A3B8] hidden sm:block">{formatDate(sub.submittedAt)}</p>
                     <StatusBadge status={sub.status} />
-                    {sub.automatedChecks.every(c => c.passed) && (
+                    {sub.automatedChecks?.every(c => c.passed) && (
                       <div title="All automated checks passed">
                         <Shield className="w-4 h-4 text-[#16A34A]" />
                       </div>

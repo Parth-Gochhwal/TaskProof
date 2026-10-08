@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion';
-import { Shield, ShieldCheck, Clock } from 'lucide-react';
+import { Shield, ShieldCheck, Clock, Loader2 } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard, PageHeader, Avatar, ProgressBar, Button, VerificationBadge } from '../../components/ui/index';
 import { useAuth } from '../../context/AuthContext';
 import { submissionService } from '../../services/submissionService';
 import { RewardLedger } from '../../services/ledgerService';
+import { useApi } from '../../hooks/useApi';
 
 const iconMap: Record<string, string> = {
   Star: '⭐', Flame: '🔥', Trophy: '🏆', Compass: '🧭', ShieldCheck: '🛡️'
@@ -23,11 +24,13 @@ const formatDate = (iso: string) =>
 export default function ContributorProfile() {
   const { user, contributorProfile } = useAuth();
 
+  const { data: mySubmissions = [], isLoading: subsLoading } = useApi(() => submissionService.getMine());
+  const { data: walletData, isLoading: walletLoading } = useApi(() => RewardLedger.getWallet());
+
   if (!contributorProfile || !user) return null;
 
-  const mySubmissions = submissionService.getByContributor(user.id);
-  const rewarded = mySubmissions.filter(s => s.status === 'rewarded');
-  const transactions = RewardLedger.getTransactionHistory(user.id);
+  const rewarded = mySubmissions.filter(s => s.status === 'rewarded' || s.status === 'approved');
+  const transactions = walletData?.transactions || [];
 
   return (
     <AppShell>
@@ -111,7 +114,7 @@ export default function ContributorProfile() {
             <GlassCard className="p-6">
               <h2 className="text-base font-bold text-[#0F172A] mb-4">Achievements</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {contributorProfile.badges.map(badge => (
+                {contributorProfile.badges?.map(badge => (
                   <motion.div
                     key={badge.id}
                     whileHover={{ y: -2 }}
@@ -144,48 +147,54 @@ export default function ContributorProfile() {
                   <Shield className="w-5 h-5 text-[#1A4B8F]" />
                   <h2 className="text-base font-bold text-[#0F172A]">Verified Work History</h2>
                 </div>
-                <span className="text-xs text-[#94A3B8]">{rewarded.length} entries</span>
+                <span className="text-xs text-[#94A3B8]">{subsLoading ? '...' : rewarded.length} entries</span>
               </div>
               <p className="text-xs text-[#64748B] mb-4">
                 Each approved task contributes to your tamper-proof work history.
               </p>
 
-              <div className="space-y-3">
-                {rewarded.map(sub => {
-                  const tx = transactions.find(t => t.submissionId === sub.id);
-                  return (
-                    <div key={sub.id} className="p-4 rounded-xl" style={{ background: '#F5F7FA', border: '1px solid #D8DEE8' }}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-[#0F172A]">{sub.taskTitle}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <ShieldCheck className="w-3.5 h-3.5 text-[#16A34A]" />
-                            <span className="text-xs text-[#16A34A] font-medium">Verified</span>
-                            <span className="text-xs text-[#94A3B8]">·</span>
-                            <Clock className="w-3 h-3 text-[#94A3B8]" />
-                            <span className="text-xs text-[#94A3B8]">{formatDate(sub.submittedAt)}</span>
+              {subsLoading || walletLoading ? (
+                 <div className="flex justify-center py-8">
+                   <Loader2 className="w-8 h-8 animate-spin text-[#1A4B8F]" />
+                 </div>
+              ) : (
+                <div className="space-y-3">
+                  {rewarded.map(sub => {
+                    const tx = transactions.find(t => t.submissionId === sub.id);
+                    return (
+                      <div key={sub.id} className="p-4 rounded-xl" style={{ background: '#F5F7FA', border: '1px solid #D8DEE8' }}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-[#0F172A]">{sub.taskTitle}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <ShieldCheck className="w-3.5 h-3.5 text-[#16A34A]" />
+                              <span className="text-xs text-[#16A34A] font-medium">Verified</span>
+                              <span className="text-xs text-[#94A3B8]">·</span>
+                              <Clock className="w-3 h-3 text-[#94A3B8]" />
+                              <span className="text-xs text-[#94A3B8]">{formatDate(sub.submittedAt)}</span>
+                            </div>
+                            {tx?.proofHash && (
+                              <p className="text-xs text-[#94A3B8] font-mono mt-1">Proof: {tx.proofHash}</p>
+                            )}
                           </div>
-                          {tx?.proofHash && (
-                            <p className="text-xs text-[#94A3B8] font-mono mt-1">Proof: {tx.proofHash}</p>
-                          )}
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <span className="text-sm font-bold text-[#1A4B8F]">+{sub.reward} TCR</span>
-                          {sub.review?.reviewedAt && (
-                            <p className="text-xs text-[#94A3B8]">{formatDate(sub.review.reviewedAt)}</p>
-                          )}
+                          <div className="text-right flex-shrink-0">
+                            <span className="text-sm font-bold text-[#1A4B8F]">+{sub.reward || 0} TCR</span>
+                            {sub.review?.reviewedAt && (
+                              <p className="text-xs text-[#94A3B8]">{formatDate(sub.review.reviewedAt)}</p>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
 
-                {rewarded.length === 0 && (
-                  <p className="text-sm text-[#94A3B8] text-center py-6">
-                    Complete and get tasks approved to build your work history.
-                  </p>
-                )}
-              </div>
+                  {rewarded.length === 0 && (
+                    <p className="text-sm text-[#94A3B8] text-center py-6">
+                      Complete and get tasks approved to build your work history.
+                    </p>
+                  )}
+                </div>
+              )}
             </GlassCard>
           </div>
         </div>

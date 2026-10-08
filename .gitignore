@@ -35,3 +35,13 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+backend\.venv
+backend\backend\.venv
+
+backend\.venv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class

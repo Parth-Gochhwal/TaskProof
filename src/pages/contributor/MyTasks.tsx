@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, RotateCcw } from 'lucide-react';
+import { Eye, RotateCcw, Loader2 } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard, PageHeader, Tabs, StatusBadge, RewardBadge, Button, EmptyState } from '../../components/ui/index';
 import { submissionService } from '../../services/submissionService';
 import type { Submission } from '../../types/models';
+import { useApi } from '../../hooks/useApi';
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -46,30 +47,34 @@ export default function MyTasks() {
   const [activeTab, setActiveTab] = useState('all');
   const [selected, setSelected] = useState<Submission | null>(null);
 
-  const subs = submissionService.getByContributor('user-contributor-demo');
+  const { data: subs = [], isLoading } = useApi(() => submissionService.getMine());
 
-  const filtered = activeTab === 'all' ? subs : subs.filter(s => s.status === activeTab);
+  const filtered = activeTab === 'all' ? subs : subs.filter(s => s.status === activeTab || (activeTab === 'rewarded' && s.status === 'approved'));
 
   return (
     <AppShell>
       <div className="max-w-4xl mx-auto">
         <PageHeader
           title="My Tasks"
-          subtitle={`${subs.length} submissions total`}
+          subtitle={isLoading ? "Loading..." : `${subs.length} submissions total`}
         />
 
         <div className="mb-5">
           <Tabs
             tabs={TAB_OPTIONS.map(t => ({
               ...t,
-              count: t.id === 'all' ? subs.length : subs.filter(s => s.status === t.id).length
+              count: t.id === 'all' ? subs.length : subs.filter(s => s.status === t.id || (t.id === 'rewarded' && s.status === 'approved')).length
             }))}
             active={activeTab}
             onChange={setActiveTab}
           />
         </div>
 
-        {selected ? (
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="w-8 h-8 animate-spin text-[#1A4B8F]" />
+          </div>
+        ) : selected ? (
           /* Submission Detail View */
           <div>
             <Button variant="ghost" size="sm" onClick={() => setSelected(null)} className="mb-4">
@@ -87,7 +92,7 @@ export default function MyTasks() {
               {/* Automated Checks */}
               <h3 className="text-sm font-bold text-[#0F172A] mb-3">Automated Pre-checks</h3>
               <div className="space-y-2 mb-5">
-                {selected.automatedChecks.map(check => (
+                {selected.automatedChecks?.map(check => (
                   <div key={check.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: '#F5F7FA', border: '1px solid #D8DEE8' }}>
                     <span className={`text-lg ${check.passed ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
                       {check.passed ? '✓' : '✗'}
@@ -103,10 +108,10 @@ export default function MyTasks() {
               {/* Submitted data */}
               <h3 className="text-sm font-bold text-[#0F172A] mb-3">Submitted Answers</h3>
               <div className="space-y-2 mb-5">
-                {Object.entries(selected.data).map(([key, val]) => (
+                {Object.entries(selected.data || {}).map(([key, val]) => (
                   <div key={key} className="flex justify-between gap-4 text-sm p-3 rounded-xl" style={{ background: '#F5F7FA' }}>
                     <span className="text-[#64748B] capitalize">{key}</span>
-                    <span className="font-medium text-[#0F172A] text-right">{Array.isArray(val) ? val.join(', ') : val}</span>
+                    <span className="font-medium text-[#0F172A] text-right">{Array.isArray(val) ? val.join(', ') : val as string}</span>
                   </div>
                 ))}
               </div>

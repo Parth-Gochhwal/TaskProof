@@ -6,6 +6,7 @@ import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard, PageHeader, Button, StepIndicator, Input, Textarea, Select } from '../../components/ui/index';
 import { taskService } from '../../services/taskService';
 import type { TaskCategory, TaskDifficulty, Task } from '../../types/models';
+import { useAuth } from '../../context/AuthContext';
 
 const STEPS = ['Details', 'Requirements', 'Reward', 'Review', 'Publish'];
 
@@ -53,10 +54,13 @@ const defaultForm: FormData = {
 
 export default function CreateTask() {
   const navigate = useNavigate();
+  const { businessProfile } = useAuth();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormData>(defaultForm);
   const [published, setPublished] = useState(false);
   const [newTask, setNewTask] = useState<Task | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [error, setError] = useState('');
 
   const set = (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const val = e.target.type === 'number' ? Number(e.target.value) : e.target.value;
@@ -65,30 +69,36 @@ export default function CreateTask() {
 
   const totalBudget = form.reward * form.slots;
 
-  const handlePublish = () => {
-    const task = taskService.create({
-      title: form.title,
-      category: form.category,
-      description: form.description,
-      shortDescription: form.shortDescription || form.description.slice(0, 100) + '...',
-      reward: form.reward,
-      estimatedMinutes: form.estimatedMinutes,
-      difficulty: form.difficulty,
-      slots: form.slots,
-      status: 'active',
-      businessId: 'user-business-demo',
-      businessName: 'TechCorp',
-      tags: [form.category, form.difficulty],
-      requirements: [
-        ...(form.instructions ? [{ id: 'r1', type: 'instruction' as const, description: form.instructions }] : []),
-        ...(form.acceptanceCriteria ? [{ id: 'r2', type: 'acceptance_criteria' as const, description: form.acceptanceCriteria }] : []),
-      ],
-      inputFields: [
-        { id: 'f1', label: 'Your Response', type: 'textarea', required: true, placeholder: 'Enter your response here...' },
-      ],
-    });
-    setNewTask(task);
-    setPublished(true);
+  const handlePublish = async () => {
+    setPublishing(true);
+    setError('');
+    try {
+      const task = await taskService.create({
+        title: form.title,
+        category: form.category,
+        description: form.description,
+        shortDescription: form.shortDescription || form.description.slice(0, 100) + '...',
+        reward: form.reward,
+        estimatedMinutes: form.estimatedMinutes,
+        difficulty: form.difficulty,
+        slots: form.slots,
+        businessName: businessProfile?.companyName || 'TechCorp',
+        tags: [form.category, form.difficulty],
+        requirements: [
+          ...(form.instructions ? [{ id: 'r1', type: 'instruction' as const, description: form.instructions }] : []),
+          ...(form.acceptanceCriteria ? [{ id: 'r2', type: 'acceptance_criteria' as const, description: form.acceptanceCriteria }] : []),
+        ],
+        inputFields: [
+          { id: 'f1', label: 'Your Response', type: 'textarea', required: true, placeholder: 'Enter your response here...' },
+        ],
+      });
+      setNewTask(task);
+      setPublished(true);
+    } catch (e: any) {
+      setError(e.message || 'Failed to create task');
+    } finally {
+      setPublishing(false);
+    }
   };
 
   if (published && newTask) {
@@ -301,7 +311,8 @@ export default function CreateTask() {
                 <span className="font-black text-[#1A4B8F]">{totalBudget.toLocaleString()} TCR</span>
               </div>
             </div>
-            <Button size="lg" className="w-full" icon={<CheckCircle className="w-5 h-5" />} onClick={handlePublish}>
+            {error && <p className="text-sm text-[#DC2626] mb-4">{error}</p>}
+            <Button size="lg" className="w-full" loading={publishing} icon={<CheckCircle className="w-5 h-5" />} onClick={handlePublish}>
               Publish Task
             </Button>
           </GlassCard>

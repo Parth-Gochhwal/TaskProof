@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ExternalLink, Shield, ChevronDown, ChevronUp } from 'lucide-react';
+import { ExternalLink, Shield, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard, PageHeader, Button, Modal } from '../../components/ui/index';
 import { useAuth } from '../../context/AuthContext';
 import { RewardLedger } from '../../services/ledgerService';
 import type { Transaction, RewardProof } from '../../types/models';
+import { useApi } from '../../hooks/useApi';
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -77,21 +78,22 @@ function TxRow({ tx, onViewProof }: { tx: Transaction; onViewProof: (tx: Transac
 }
 
 export default function ContributorWallet() {
-  const { user, balance } = useAuth();
+  const { balance } = useAuth();
   const [proofModal, setProofModal] = useState(false);
   const [selectedProof, setSelectedProof] = useState<RewardProof | null>(null);
 
-  const transactions = RewardLedger.getTransactionHistory(user?.id || '');
-  const totalEarned = transactions.filter(t => t.direction === 'credit').reduce((s, t) => s + t.amount, 0);
+  const { data: walletData, isLoading } = useApi(() => RewardLedger.getWallet());
+  const transactions = walletData?.transactions || [];
+  const totalEarned = walletData?.totalEarned || 0;
 
-  const handleViewProof = (tx: Transaction) => {
-    let proof = RewardLedger.getProof(tx.id);
+  const handleViewProof = async (tx: Transaction) => {
+    let proof = await RewardLedger.getProof(tx.id);
     if (!proof) {
       proof = {
         transactionId: tx.id,
         taskId: tx.taskId || '',
         submissionId: tx.submissionId || '',
-        contributorId: user?.id || '',
+        contributorId: '',
         businessId: 'mock-business',
         reward: tx.amount,
         timestamp: tx.timestamp,
@@ -139,7 +141,7 @@ export default function ContributorWallet() {
               </div>
               <div className="w-px bg-white/20" />
               <div className="text-center">
-                <p className="text-2xl font-bold text-white">0x...3D2c</p>
+                <p className="text-2xl font-bold text-white">{walletData?.address?.slice(0, 8) || '0x...3D2c'}</p>
                 <p className="text-white/60 text-xs">Wallet</p>
               </div>
             </div>
@@ -164,11 +166,17 @@ export default function ContributorWallet() {
 
         {/* Transactions */}
         <h2 className="text-base font-bold text-[#0F172A] mb-3">Transaction History</h2>
-        <div className="space-y-3">
-          {transactions.map(tx => (
-            <TxRow key={tx.id} tx={tx} onViewProof={handleViewProof} />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-8 h-8 animate-spin text-[#1A4B8F]" />
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {transactions.map(tx => (
+              <TxRow key={tx.id} tx={tx} onViewProof={handleViewProof} />
+            ))}
+          </div>
+        )}
 
         <p className="text-xs text-center text-[#94A3B8] mt-6">
           TaskProof Local Network — Demo Environment · Proof is illustrative only

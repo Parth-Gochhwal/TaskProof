@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Plus, CheckCircle, Clock, FileText, TrendingUp, Zap } from 'lucide-react';
+import { Plus, CheckCircle, Clock, FileText, TrendingUp, Zap, Loader2 } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { GlassCard, MetricCard, SectionHeader, Button, StatusBadge } from '../../components/ui/index';
 import { useAuth } from '../../context/AuthContext';
@@ -7,6 +7,8 @@ import { taskService } from '../../services/taskService';
 import { submissionService } from '../../services/submissionService';
 import { DEMO_BUSINESS_ANALYTICS } from '../../data/seed';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { useApi } from '../../hooks/useApi';
+import { apiClient } from '../../services/apiClient';
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -14,13 +16,16 @@ const formatDate = (iso: string) =>
 export default function BusinessDashboard() {
   const navigate = useNavigate();
   const { businessProfile } = useAuth();
-  const tasks = taskService.getByBusiness('user-business-demo');
-  const taskIds = tasks.map(t => t.id);
-  const allSubs = submissionService.getAll().filter(s => taskIds.includes(s.taskId));
+  
+  const { data: tasks = [], isLoading: tasksLoading } = useApi(() => taskService.getByBusiness());
+  const { data: allSubs = [], isLoading: subsLoading } = useApi(() => submissionService.getForBusiness());
+  const { data: analytics = DEMO_BUSINESS_ANALYTICS, isLoading: analyticsLoading } = useApi(() => apiClient.get<any>('/business/analytics'));
+
   const pendingReview = allSubs.filter(s => s.status === 'under_review');
-  const approved = allSubs.filter(s => s.status === 'rewarded');
-  const analytics = DEMO_BUSINESS_ANALYTICS;
+  const approved = allSubs.filter(s => s.status === 'rewarded' || s.status === 'approved');
   const companyName = businessProfile?.companyName || 'Your Company';
+
+  const isLoading = tasksLoading || subsLoading || analyticsLoading;
 
   return (
     <AppShell>
@@ -38,10 +43,10 @@ export default function BusinessDashboard() {
 
         {/* Metrics */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <MetricCard label="Active Tasks" value={tasks.filter(t => t.status === 'active').length} sub="Running now" icon={<Zap className="w-5 h-5" />} />
-          <MetricCard label="Total Submissions" value={allSubs.length} sub="All time" icon={<FileText className="w-5 h-5" />} />
-          <MetricCard label="Approved" value={approved.length} sub="Rewarded" icon={<CheckCircle className="w-5 h-5" />} color="#16A34A" />
-          <MetricCard label="Under Review" value={pendingReview.length} sub="Needs attention" icon={<Clock className="w-5 h-5" />} color="#D97706" />
+          <MetricCard label="Active Tasks" value={isLoading ? '...' : tasks.filter(t => t.status === 'active').length} sub="Running now" icon={<Zap className="w-5 h-5" />} />
+          <MetricCard label="Total Submissions" value={isLoading ? '...' : allSubs.length} sub="All time" icon={<FileText className="w-5 h-5" />} />
+          <MetricCard label="Approved" value={isLoading ? '...' : approved.length} sub="Rewarded" icon={<CheckCircle className="w-5 h-5" />} color="#16A34A" />
+          <MetricCard label="Under Review" value={isLoading ? '...' : pendingReview.length} sub="Needs attention" icon={<Clock className="w-5 h-5" />} color="#D97706" />
         </div>
 
         {/* Chart + Recent submissions */}
@@ -49,39 +54,51 @@ export default function BusinessDashboard() {
           {/* Chart */}
           <GlassCard className="p-5">
             <h2 className="text-sm font-bold text-[#0F172A] mb-4">Submissions Over Time</h2>
-            <ResponsiveContainer width="100%" height={180}>
-              <AreaChart data={analytics.submissionsOverTime}>
-                <defs>
-                  <linearGradient id="submGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#1A4B8F" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#1A4B8F" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94A3B8' }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ background: 'white', border: '1px solid #D8DEE8', borderRadius: '12px', fontSize: '12px' }} />
-                <Area type="monotone" dataKey="count" stroke="#1A4B8F" strokeWidth={2} fill="url(#submGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            {isLoading ? (
+              <div className="h-[180px] flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-[#1A4B8F]" />
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={analytics.submissionsOverTime}>
+                  <defs>
+                    <linearGradient id="submGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#1A4B8F" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#1A4B8F" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94A3B8' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ background: 'white', border: '1px solid #D8DEE8', borderRadius: '12px', fontSize: '12px' }} />
+                  <Area type="monotone" dataKey="count" stroke="#1A4B8F" strokeWidth={2} fill="url(#submGrad)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </GlassCard>
 
           {/* Approval Rate Chart */}
           <GlassCard className="p-5">
             <h2 className="text-sm font-bold text-[#0F172A] mb-4">Approval Rate (%)</h2>
-            <ResponsiveContainer width="100%" height={180}>
-              <AreaChart data={analytics.approvalRateOverTime}>
-                <defs>
-                  <linearGradient id="approvalGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#16A34A" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#16A34A" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94A3B8' }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} tickLine={false} axisLine={false} domain={[70, 100]} />
-                <Tooltip contentStyle={{ background: 'white', border: '1px solid #D8DEE8', borderRadius: '12px', fontSize: '12px' }} />
-                <Area type="monotone" dataKey="rate" stroke="#16A34A" strokeWidth={2} fill="url(#approvalGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            {isLoading ? (
+              <div className="h-[180px] flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-[#1A4B8F]" />
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={analytics.approvalRateOverTime}>
+                  <defs>
+                    <linearGradient id="approvalGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#16A34A" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#16A34A" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94A3B8' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} tickLine={false} axisLine={false} domain={[70, 100]} />
+                  <Tooltip contentStyle={{ background: 'white', border: '1px solid #D8DEE8', borderRadius: '12px', fontSize: '12px' }} />
+                  <Area type="monotone" dataKey="rate" stroke="#16A34A" strokeWidth={2} fill="url(#approvalGrad)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </GlassCard>
         </div>
 
@@ -103,36 +120,42 @@ export default function BusinessDashboard() {
             <span className="col-span-2">Submitted</span>
             <span className="col-span-1">Action</span>
           </div>
-          {allSubs.slice(0, 6).map(sub => (
-            <div key={sub.id} className="px-5 py-3 border-b border-[#D8DEE8]/50 last:border-0 grid grid-cols-12 items-center hover:bg-[#F5F7FA] transition-colors">
-              <div className="col-span-4 flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-[#1A4B8F] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                  {sub.contributorName[0]}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-[#0F172A]">{sub.contributorName}</p>
-                  <p className="text-xs text-[#94A3B8]">Lv.{sub.contributorLevel}</p>
-                </div>
-              </div>
-              <div className="col-span-3">
-                <p className="text-sm text-[#0F172A] truncate">{sub.taskTitle}</p>
-              </div>
-              <div className="col-span-2">
-                <StatusBadge status={sub.status} />
-              </div>
-              <div className="col-span-2 text-xs text-[#94A3B8]">
-                {formatDate(sub.submittedAt)}
-              </div>
-              <div className="col-span-1">
-                <button
-                  onClick={() => navigate('/app/business/submissions')}
-                  className="text-xs text-[#1A4B8F] font-medium hover:underline cursor-pointer"
-                >
-                  {sub.status === 'under_review' ? 'Review' : 'View'}
-                </button>
-              </div>
+          {isLoading ? (
+            <div className="py-8 flex justify-center">
+               <Loader2 className="w-6 h-6 animate-spin text-[#1A4B8F]" />
             </div>
-          ))}
+          ) : (
+            allSubs.slice(0, 6).map(sub => (
+              <div key={sub.id} className="px-5 py-3 border-b border-[#D8DEE8]/50 last:border-0 grid grid-cols-12 items-center hover:bg-[#F5F7FA] transition-colors">
+                <div className="col-span-4 flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-[#1A4B8F] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                    {sub.contributorName?.[0] || '?'}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-[#0F172A]">{sub.contributorName}</p>
+                    <p className="text-xs text-[#94A3B8]">Lv.{sub.contributorLevel}</p>
+                  </div>
+                </div>
+                <div className="col-span-3">
+                  <p className="text-sm text-[#0F172A] truncate">{sub.taskTitle}</p>
+                </div>
+                <div className="col-span-2">
+                  <StatusBadge status={sub.status} />
+                </div>
+                <div className="col-span-2 text-xs text-[#94A3B8]">
+                  {formatDate(sub.submittedAt)}
+                </div>
+                <div className="col-span-1">
+                  <button
+                    onClick={() => navigate('/app/business/submissions')}
+                    className="text-xs text-[#1A4B8F] font-medium hover:underline cursor-pointer"
+                  >
+                    {sub.status === 'under_review' ? 'Review' : 'View'}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </GlassCard>
 
         {/* Quick Stats */}
@@ -144,7 +167,7 @@ export default function BusinessDashboard() {
           ].map(stat => (
             <GlassCard key={stat.label} className="p-4 text-center">
               <div className="flex justify-center mb-2" style={{ color: stat.color }}>{stat.icon}</div>
-              <p className="text-xl font-black text-[#0F172A]">{stat.value}</p>
+              <p className="text-xl font-black text-[#0F172A]">{isLoading ? '-' : stat.value}</p>
               <p className="text-xs text-[#64748B]">{stat.label}</p>
             </GlassCard>
           ))}

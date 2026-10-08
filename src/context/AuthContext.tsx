@@ -1,11 +1,6 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { User, UserRole, ContributorProfile, BusinessProfile } from '../types/models';
-import {
-  DEMO_CONTRIBUTOR_USER,
-  DEMO_BUSINESS_USER,
-  DEMO_CONTRIBUTOR_PROFILE,
-  DEMO_BUSINESS_PROFILE,
-} from '../data/seed';
+import { apiClient } from '../services/apiClient';
 import { RewardLedger } from '../services/ledgerService';
 
 interface AuthContextValue {
@@ -15,11 +10,12 @@ interface AuthContextValue {
   businessProfile: BusinessProfile | null;
   balance: number;
   isAuthenticated: boolean;
-  loginAsContributor: () => void;
-  loginAsBusiness: () => void;
+  isLoading: boolean;
+  loginAsContributor: () => Promise<void>;
+  loginAsBusiness: () => Promise<void>;
   logout: () => void;
-  refreshBalance: () => void;
-  updateContributorProfile: (patch: Partial<ContributorProfile>) => void;
+  refreshBalance: () => Promise<void>;
+  updateContributorProfile: (patch: Partial<ContributorProfile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -30,24 +26,90 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [contributorProfile, setContributorProfile] = useState<ContributorProfile | null>(null);
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null);
   const [balance, setBalance] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const loginAsContributor = useCallback(() => {
-    setUser(DEMO_CONTRIBUTOR_USER);
-    setRole('contributor');
-    setContributorProfile(DEMO_CONTRIBUTOR_PROFILE);
-    setBusinessProfile(null);
-    setBalance(RewardLedger.getBalance(DEMO_CONTRIBUTOR_USER.id));
+  const fetchProfile = async (currentRole: UserRole) => {
+    try {
+      const profile = await apiClient.get<any>('/users/me/profile');
+      if (currentRole === 'contributor') {
+        setContributorProfile(profile as ContributorProfile);
+      } else {
+        setBusinessProfile(profile as BusinessProfile);
+      }
+    } catch (e) {
+      console.error("Failed to fetch profile", e);
+    }
+  };
+
+  const refreshBalance = useCallback(async () => {
+    try {
+      const wallet = await RewardLedger.getWallet();
+      setBalance(wallet.balance || 0);
+    } catch (e) {
+      console.error("Failed to fetch balance", e);
+    }
   }, []);
 
-  const loginAsBusiness = useCallback(() => {
-    setUser(DEMO_BUSINESS_USER);
-    setRole('business');
-    setContributorProfile(null);
-    setBusinessProfile(DEMO_BUSINESS_PROFILE);
-    setBalance(RewardLedger.getBalance(DEMO_BUSINESS_USER.id));
-  }, []);
+  const handleAuthSuccess = async (res: any) => {
+    if (res.token) {
+      apiClient.setToken(res.token);
+    }
+    const newUser: User = {
+      id: res.userId,
+      email: res.email,
+      name: res.name,
+      role: res.role as UserRole,
+      avatar: res.avatar,
+      createdAt: new Date().toISOString(), // Fallback if missing
+    };
+    setUser(newUser);
+    setRole(res.role as UserRole);
+    
+    await fetchProfile(res.role as UserRole);
+    await refreshBalance();
+  };
+
+  useEffect(() => {
+    // Check initial auth state
+    const initAuth = async () => {
+      if (!apiClient.getToken()) {
+        setIsLoading(false);
+        return;
+      }
+      try {
+        const me = await apiClient.get<any>('/auth/me');
+        await handleAuthSuccess(me);
+      } catch (e) {
+        apiClient.setToken(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    initAuth();
+  }, [refreshBalance]);
+
+  const loginAsContributor = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await apiClient.post<any>('/auth/demo/contributor');
+      await handleAuthSuccess(res);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [refreshBalance]);
+
+  const loginAsBusiness = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await apiClient.post<any>('/auth/demo/business');
+      await handleAuthSuccess(res);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [refreshBalance]);
 
   const logout = useCallback(() => {
+    apiClient.setToken(null);
     setUser(null);
     setRole(null);
     setContributorProfile(null);
@@ -55,14 +117,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setBalance(0);
   }, []);
 
-  const refreshBalance = useCallback(() => {
-    if (user) {
-      setBalance(RewardLedger.getBalance(user.id));
+  const updateContributorProfile = useCallback(async (patch: Partial<ContributorProfile>) => {
+    try {
+      const updated = await apiClient.patch<ContributorProfile>('/users/me/profile', patch);
+      setContributorProfile(updated);
+    } catch (e) {
+      console.error("Failed to update profile", e);
     }
-  }, [user]);
-
-  const updateContributorProfile = useCallback((patch: Partial<ContributorProfile>) => {
-    setContributorProfile(prev => prev ? { ...prev, ...patch } : null);
   }, []);
 
   return (
@@ -73,6 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       businessProfile,
       balance,
       isAuthenticated: user !== null,
+      isLoading,
       loginAsContributor,
       loginAsBusiness,
       logout,
