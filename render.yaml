@@ -1,0 +1,87 @@
+# render.yaml — TaskProof Render Deployment Configuration
+#
+# Defines two Render services from a single repository:
+#   1. taskproof-backend  — FastAPI Web Service
+#   2. taskproof-frontend — React/Vite Static Site
+#
+# IMPORTANT: After deploying the backend, copy its Render URL and:
+#   1. Set ALLOWED_ORIGINS on the backend Web Service to your frontend URL.
+#   2. Add an API rewrite rule on the frontend Static Site:
+#      Source:      /api/*
+#      Destination: https://<your-backend>.onrender.com/api/*
+#      Action:      Rewrite
+#
+# See README.md for the full step-by-step deployment guide.
+
+services:
+  # ==============================================================
+  # SERVICE 1: FastAPI Backend — Render Web Service
+  # ==============================================================
+  - type: web
+    name: taskproof-backend
+    runtime: python
+    plan: free
+
+    # Root directory for this service (where requirements.txt lives)
+    rootDir: backend
+
+    # Build: install Python dependencies from requirements.txt
+    buildCommand: pip install -r requirements.txt
+
+    # Start: bind to 0.0.0.0 and use Render's $PORT
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+    # Health check — Render polls this to confirm the service is up
+    healthCheckPath: /health
+
+    envVars:
+      # ALLOWED_ORIGINS: set this to your frontend Render URL after deploy.
+      # Example: https://taskproof-frontend.onrender.com
+      # Leave blank here — set it in the Render Dashboard to avoid
+      # exposing placeholder values in the repository.
+      - key: ALLOWED_ORIGINS
+        sync: false   # Render Dashboard will provide the real value
+
+      # DATABASE_URL: optional override for SQLite path.
+      # If unset, the backend uses backend/taskproof.db (ephemeral on Render free tier).
+      # - key: DATABASE_URL
+      #   value: sqlite:////data/taskproof.db
+
+  # ==============================================================
+  # SERVICE 2: React/Vite Frontend — Render Static Site
+  # ==============================================================
+  - type: web
+    name: taskproof-frontend
+    runtime: static
+    plan: free
+
+    # Frontend is at repository root
+    rootDir: .
+
+    # Build: TypeScript compile + Vite bundle
+    buildCommand: npm ci && npm run build
+
+    # Vite output directory
+    staticPublishPath: dist
+
+    envVars:
+      # VITE_API_URL: use relative /api so requests hit the same origin.
+      # The Render Static Site rewrite rule forwards /api/* to the backend.
+      - key: VITE_API_URL
+        value: /api
+
+    routes:
+      # API rewrite — proxy /api/* to the FastAPI backend.
+      # REPLACE <your-backend>.onrender.com with your actual backend URL.
+      # This MUST be set after the backend service is deployed.
+      # Uncomment and update this block once you have the backend URL:
+      #
+      # - type: rewrite
+      #   source: /api/*
+      #   destination: https://<your-backend>.onrender.com/api/*
+
+      # SPA fallback — serve index.html for all client-side routes.
+      # This comes AFTER the API rewrite so /api/* is not swallowed.
+      - type: rewrite
+        source: /*
+        destination: /index.html

@@ -7,10 +7,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 import os
 
-# Store DB in the backend directory
+# Store DB in the backend directory (used when DATABASE_URL is not set)
 DB_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SQLITE_PATH = os.path.join(DB_DIR, "taskproof.db")
-DATABASE_URL = f"sqlite:///{SQLITE_PATH}"
+_default_url = f"sqlite:///{SQLITE_PATH}"
+
+# Allow DATABASE_URL env var override (e.g., for non-default Render disk mount paths)
+DATABASE_URL = os.environ.get("DATABASE_URL", _default_url)
 
 engine = create_engine(
     DATABASE_URL,

@@ -16,7 +16,7 @@ export const taskService = {
   async getById(id: string): Promise<Task | null> {
     try {
       return await apiClient.get<Task>(`/tasks/${id}`);
-    } catch (e) {
+    } catch {
       return null;
     }
   },

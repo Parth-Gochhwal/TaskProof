@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const handleAuthSuccess = async (res: any) => {
+  const handleAuthSuccess = useCallback(async (res: any) => {
     if (res.token) {
       apiClient.setToken(res.token);
     }
@@ -64,10 +64,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     setUser(newUser);
     setRole(res.role as UserRole);
-    
+
     await fetchProfile(res.role as UserRole);
     await refreshBalance();
-  };
+  }, [refreshBalance]);
 
   useEffect(() => {
     // Check initial auth state
@@ -79,14 +79,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const me = await apiClient.get<any>('/auth/me');
         await handleAuthSuccess(me);
-      } catch (e) {
+      } catch {
         apiClient.setToken(null);
       } finally {
         setIsLoading(false);
       }
     };
     initAuth();
-  }, [refreshBalance]);
+  }, [handleAuthSuccess, refreshBalance]);
 
   const loginAsContributor = useCallback(async () => {
     setIsLoading(true);
@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [refreshBalance]);
+  }, [handleAuthSuccess]);
 
   const loginAsBusiness = useCallback(async () => {
     setIsLoading(true);
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [refreshBalance]);
+  }, [handleAuthSuccess]);
 
   const logout = useCallback(() => {
     apiClient.setToken(null);

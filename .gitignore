@@ -1,5 +1,72 @@
+@'
+# ================================
+# Dependencies
+# ================================
+
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+backend/.venv/
+
+# ================================
+# Frontend / Build
+# ================================
+
+dist/
+dist-ssr/
+build/
+out/
+.vite/
+coverage/
+.nyc_output/
+*.tsbuildinfo
+
+# ================================
+# Python cache / tooling
+# ================================
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+.pytest_cache/
+.mypy_cache/
+.pyright/
+.ruff_cache/
+
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# ================================
+# Environment / Secrets
+# ================================
+
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# ================================
+# SQLite / Local Runtime Data
+# ================================
+
+*.db
+*.sqlite
+*.sqlite3
+
+# ================================
 # Logs
-logs
+# ================================
+
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,41 +74,38 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-.vite
-*.local
+# ================================
+# Editor / IDE
+# ================================
 
-# Environment files
-.env*
-!.env.example
-!.env.sample
-
-# Test and TypeScript output
-coverage
-.nyc_output
-*.tsbuildinfo
-
-# Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.vscode-test
-.idea
+
+.idea/
+.vscode-test/
+
+# ================================
+# OS Files
+# ================================
+
 .DS_Store
 Thumbs.db
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Desktop.ini
 
-backend\.venv
-backend\backend\.venv
+# ================================
+# Temporary / Backup Files
+# ================================
 
-backend\.venv
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
+# ================================
+# Optional local configuration
+# ================================
+
+*.local
+'@ | Set-Content -Encoding utf8 .gitignore

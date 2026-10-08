@@ -13,7 +13,7 @@ export const submissionService = {
   async getById(id: string): Promise<Submission | null> {
     try {
       return await apiClient.get<Submission>(`/submissions/${id}`);
-    } catch (e) {
+    } catch {
       return null;
     }
   },

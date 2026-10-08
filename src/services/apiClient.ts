@@ -79,7 +79,7 @@ class ApiClient {
       try {
         const errorData = await response.json();
         errorDetail = errorData.detail || errorData.message || errorDetail;
-      } catch (e) {
+      } catch {
         // Not JSON
       }
       throw new Error(errorDetail);
